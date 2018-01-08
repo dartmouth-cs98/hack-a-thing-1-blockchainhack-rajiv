@@ -1,10 +1,13 @@
 # Used the following tutorial: https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
 
-
 import hashlib
 import json
 from time import time
+from uuid import uuid4
 
+from textwrap import dedent
+
+from flask import Flask, jsonify, request
 
 class Blockchain(object):
     def __init__(self):
@@ -67,3 +70,102 @@ class Blockchain(object):
         # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
+
+    # Fixed the proof of work issue by following the following link for methods
+    # "proof_of_work" and "valid_proof"
+    # https://github.com/dvf/blockchain/issues/10
+
+    def proof_of_work(self, last_proof):
+        """
+        Simple PoW algo:
+        Find a number p' (new proof) s. t. hash(pp'h) contains 4 leading zeroes, where p is the
+        previous proof and h is the hash of the previous block.
+
+        :param last_proof: <int>
+        :return: <int>
+        """
+        proof = 0
+        previous_hash = self.hash(self.chain[-1])
+        while self.valid_proof(last_proof, proof, previous_hash) is False:
+            proof += 1
+
+        return proof
+
+
+    @staticmethod
+    def valid_proof(last_proof, proof, previous_hash):
+        """
+        Validates the proof: Does hash(last_proof, proof, previous_hash) contain 4 leading zeroes?
+
+        :param last_proof: <int> Previous proof
+        :param proof: <int> Current proof
+        :param previous_hash: <str> Hash of previous block
+        :return: <bool> True if correct, False if not
+        """
+        guess = f'{last_proof}{proof}{previous_hash}'.encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        return guess_hash[:4] == "0000"
+
+# Instantiate our Node
+app = Flask(__name__)
+
+# Generate a globally unique address for this node
+node_identifier = str(uuid4()).replace('-', '')
+
+# Instantiate the Blockchain
+blockchain = Blockchain()
+
+
+@app.route('/mine', methods=['GET'])
+def mine():
+    # We run the proof of work algorithm to get the next proof...
+    last_block = blockchain.last_block
+    last_proof = last_block['proof']
+    proof = blockchain.proof_of_work(last_proof)
+
+    # We must receive a reward for finding the proof.
+    # The sender is "0" to signify that this node has mined a new coin.
+    blockchain.new_transaction(
+        sender="0",
+        recipient=node_identifier,
+        amount=1,
+    )
+
+    # Forge the new Block by adding it to the chain
+    previous_hash = blockchain.hash(last_block)
+    block = blockchain.new_block(proof, previous_hash)
+
+    response = {
+        'message': "New Block Forged",
+        'index': block['index'],
+        'transactions': block['transactions'],
+        'proof': block['proof'],
+        'previous_hash': block['previous_hash'],
+    }
+    return jsonify(response), 200
+
+@app.route('/transactions/new', methods=['POST'])
+def new_transaction():
+    values = request.get_json()
+
+    # Check that the required fields are in the POST'ed data
+    required = ['sender', 'recipient', 'amount']
+    if not all(k in values for k in required):
+        return 'Missing values', 400
+
+    # Create a new Transaction
+    index = blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
+
+    response = {'message': f'Transaction will be added to Block {index}'}
+    return jsonify(response), 201
+
+@app.route('/chain', methods=['GET'])
+def full_chain():
+    response = {
+        'chain': blockchain.chain,
+        'length': len(blockchain.chain),
+    }
+    return jsonify(response), 200
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
