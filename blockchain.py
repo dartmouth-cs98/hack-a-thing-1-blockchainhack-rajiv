@@ -1,5 +1,8 @@
 # Used the following tutorial: https://hackernoon.com/learn-blockchains-by-building-one-117428612f46
 
+# Used the following article to solve Flask problems: https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world
+
+
 import hashlib
 import json
 from time import time
