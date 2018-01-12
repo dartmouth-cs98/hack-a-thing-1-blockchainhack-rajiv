@@ -40,7 +40,6 @@ class Blockchain(object):
 
         # Reset the current list of transactions
         self.current_transactions = []
-
         self.chain.append(block)
         return block
 
@@ -60,21 +59,6 @@ class Blockchain(object):
 
         return self.last_block['index'] + 1
 
-    @property
-    def last_block(self):
-        return self.chain[-1]
-
-    @staticmethod
-    def hash(block):
-        """
-        Creates a SHA-256 hash of a Block
-        :param block: <dict> Block
-        :return: <str>
-        """
-
-        # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
-        block_string = json.dumps(block, sort_keys=True).encode()
-        return hashlib.sha256(block_string).hexdigest()
 
     # Fixed the proof of work issue by following the following link for methods
     # "proof_of_work" and "valid_proof"
@@ -95,8 +79,7 @@ class Blockchain(object):
             proof += 1
 
         return proof
-
-
+        
     @staticmethod
     def valid_proof(last_proof, proof, previous_hash):
         """
@@ -109,17 +92,7 @@ class Blockchain(object):
         """
         guess = f'{last_proof}{proof}{previous_hash}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
-        return guess_hash[:4] == "0000"
-
-    def register_node(self, address):
-        """
-        Add a new node to the list of nodes
-        :param address: <str> Address of node. Eg. 'http://192.168.0.5:5000'
-        :return: None
-        """
-
-        parsed_url = urlparse(address)
-        self.nodes.add(parsed_url.netloc)
+        return guess_hash[:5] == "00000"
 
     def valid_chain(self, chain):
         """
@@ -182,6 +155,34 @@ class Blockchain(object):
 
         return False
 
+    def register_node(self, address):
+        """
+        Add a new node to the list of nodes
+        :param address: <str> Address of node. Eg. 'http://192.168.0.5:5000'
+        :return: None
+        """
+
+        parsed_url = urlparse(address)
+        self.nodes.add(parsed_url.netloc)
+
+    @property
+    def last_block(self):
+        return self.chain[-1]
+
+    @staticmethod
+    def hash(block):
+        """
+        Creates a SHA-256 hash of a Block
+        :param block: <dict> Block
+        :return: <str>
+        """
+
+        # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
+        block_string = json.dumps(block, sort_keys=True).encode()
+        return hashlib.sha256(block_string).hexdigest()
+
+
+
 # Instantiate our Node
 app = Flask(__name__)
 
@@ -243,9 +244,6 @@ def full_chain():
     }
     return jsonify(response), 200
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
 
 @app.route('/nodes/register', methods=['POST'])
 def register_nodes():
@@ -281,3 +279,7 @@ def consensus():
         }
 
     return jsonify(response), 200
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
