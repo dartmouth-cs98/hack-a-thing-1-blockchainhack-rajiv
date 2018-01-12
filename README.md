@@ -12,6 +12,8 @@ Run with `FLASK_APP=blockchain.py flask run` after setting up your venv
 ### Mining
 Mine a block by submitting a GET request to `http://localhost:5000/mine`
 
+Currently, I have set the Proof of Work algorithm to work for a hash with only 4 leading zeros. Increasing the number of leading zeros greatly increase the computational complexity and time of the mining process. 
+
 ### Adding transactions
 Add transactions by submitting a POST request to `http://localhost:5000/transactions/new` with the following JSON block
 
